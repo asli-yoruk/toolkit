@@ -49,6 +49,7 @@ def main():
 		seq_list = [sequence.Sequence(sequence=seq, name=seqname) for seqname, seq in tier1.items()]
 		sequence.writeFastaFile('tier1_query.fa', seq_list)
 
+
 	if args.annotateFile:
 		print("these are representative")
 	elif args.tier1:
@@ -203,6 +204,11 @@ def main():
 	        f.close()
 	        tier1_cnt = 0
 	        seqs = []
+
+	        #add the user sequences to all of our datasets
+	        for i in seq_list:
+				seqs.append()
+
 	        for name in names:
 	            try:
 	                seq = db100_map[name]
