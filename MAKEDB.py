@@ -13,9 +13,11 @@ def main():
 	parser.add_argument("-db", "--database", help="Database output file name", required=True)
 	parser.add_argument("-r", "--redundancy", nargs='*', help="List of redundancy levels", default=[99,98,95,90,80,70])
 	#if user provided the CSV file after MATCHMYSEQS -af, no blastp needed
-	parser.add_argument("-af", "--annotateFile", help="Representative sequences")
+	parser.add_argument("-af1", "--annotateFile1", help="Tier1 representative sequences")
 	#if user provided CSV file with their own tier1 seqs, we blastp
-	parser.add_argument("-t", "--tier1", help="User's Tier1 sequences")
+	parser.add_argument("-t1", "--tier1", help="User's Tier1 sequences")
+	parser.add_argument("-af2", "--annotateFile2", help="Tier2 representative sequences")
+	parser.add_argument("-t2", "--tier2", help="User's Tier2 sequences")
 	parser.add_argument("-ml", "--maxlength", help="Max length that the sequence can be", default=800)
 	parser.add_argument("-e", "--eval", nargs='*', help="List of evalues", default=[1e-100, 1e-75, 1e-50, 1e-20, 1e-10, 1e-5])
 	args = parser.parse_args()
@@ -24,8 +26,9 @@ def main():
 	tier1 = {}
 	seqNameCol = 0
 	#As long as the csv has Name and Sequence, it is fine
-	if args.annotateFile:
-		with open(args.annotateFile, newline='') as f:
+	if args.annotateFile1:
+		print("these are representative")
+		with open(args.annotateFile1, newline='') as f:
 				reader = csv.reader(f)
 				for row in reader:
 					if header:
@@ -40,21 +43,64 @@ def main():
 		print(len(tier1))
 
 	elif args.tier1:
-		with open(args.tier1, newline='') as f:
-				reader = csv.reader(f)
-				headerInput = next(reader)  # gets the first line
-				for row in reader:
-					tier1[row[0]] = row[1]
 
-		seq_list = [sequence.Sequence(sequence=seq, name=seqname) for seqname, seq in tier1.items()]
-		sequence.writeFastaFile('tier1_query.fa', seq_list)
-
-
-	if args.annotateFile:
-		print("these are representative")
-	elif args.tier1:
 		print("these are special seqs")
+		if '.fa' in args.tier1:		
+			print("tier 1 sequences are FASTA file")
+			tier1 = {}
+			tier1_annots = {} # annotations that we want to include in the final dataset
+			seq_list = sequence.readFastaFile(args.tier1, sequence.Protein_Alphabet, ignore=True, parse_defline=False)
+			print(seq_list)
+			sequence.writeFastaFile('tier1_query.fa', seq_list)
 
+			#print(t)
+			# tier1 = {} # map from "long" name to actual entry
+			# for s in t:
+			# # #     #print(s.name)
+			# #     tier1[s.name] = s
+			# # # #     print(s)
+			# 	db100_map_short[sequence.parseDefline(s.name)[0]] = s
+			# # for i in args.tier1:
+			# # 	print(i)
+			# print(tier1)
+			
+		elif '.csv' in args.tier1:
+			tier1 = {}
+			tier1_annots = {} # annotations that we want to include in the final dataset
+			print("tier 1 sequences are CSV file")
+			with open(args.tier1, newline='') as f:
+					reader = csv.reader(f)
+					headerInput = next(reader)  # gets the first line
+					print(headerInput)
+					for row in reader:
+						#print(row)
+						tier1[row[0]] = row[1]
+
+			seq_list = [sequence.Sequence(sequence=seq, name=seqname) for seqname, seq in tier1.items()]
+			sequence.writeFastaFile('tier1_query.fa', seq_list)
+
+	tier2 = {}
+	tier2_annots = {} # annotations that we want to include in the final dataset
+
+	if args.tier2:
+		print("tier2 special sequences have been provided")
+		if '.fa' in args.tier2:
+			print("tier 2 sequences are FASTA file")
+			# for name in copunames:
+		 #    	if name in db100_map_short:
+			#         s = db100_map_short[name]
+			#         tier2[s.name] = s
+			#         tier2_annots[s.name] = 'T2=yes'
+	  #       print(tier2)
+		elif '.csv' in args.tier2:
+			print("tier 2 sequences are CSV file")
+
+	elif args.annotateFile2:
+		print("tier2 representative sequences have been provided")
+		if '.fa' in args.tier2:
+			print("tier 2 sequences are FASTA file")
+		elif '.csv' in args.tier2:
+			print("tier 2 sequences are CSV file")
 
 
 	db100 = sequence.readFastaFile(args.input, sequence.Protein_Alphabet, ignore=True, parse_defline=False)
@@ -78,8 +124,6 @@ def main():
 
 
 	if args.tier1:
-		tier1 = {}
-		tier1_annots = {} # annotations that we want to include in the final dataset
 		os.system("blastp -db " + args.database + " -outfmt 3 -num_descriptions 1 -num_alignments 0 -query tier1_query.fa -out UniProt_rep.txt")
 		command = "grep -e \"^[st][pr]|\" UniProt_rep.txt | cut -d\' \' -f1 > UniProt_copu.tab"
 		print (command)
@@ -116,7 +160,7 @@ def main():
 	print('Ultimately', len(tier1), 'Tier-1 entries')
 
 
-	if args.annotateFile:
+	if args.annotateFile1:
 		seq_list = [sequence.Sequence(sequence=seq, name=seqname) for seqname, seq in tier1.items()]
 		print(seq_list)
 		sequence.writeFastaFile('tier1.fa', seq_list)
@@ -149,7 +193,10 @@ def main():
 	                if name in tier1:
 	                    selected[rr].append(seq)
 	                    picked_one = True
-	                    print("found one!")
+	                    #print("found one!")
+	                elif name in tier2:
+	                	selected[rr].append(seq)
+	                	picked_one = True
 	            else:
 	            	pass
 	                #print('Did not find', name)
@@ -188,7 +235,8 @@ def main():
 
 
 	totalSeqCount = []
-
+	c = 0
+	print(args.eval)
 	for evalue in args.eval:
 	    for rr in redundancy: 
 	        output = []
@@ -201,13 +249,15 @@ def main():
 	        f = open(result_file + '.tab', 'rt')
 	        for row in f:
 	            names.add(row.strip())
+
 	        f.close()
 	        tier1_cnt = 0
 	        seqs = []
 
 	        #add the user sequences to all of our datasets
-	        for i in seq_list:
-				seqs.append()
+	        for seq in seq_list:
+	        	c+=1
+	        	seqs.append(seq)
 
 	        for name in names:
 	            try:
@@ -216,6 +266,9 @@ def main():
 	                if name in tier1:
 	                    tier1_cnt += 1
 	                    info = seq.info + ' ' + tier1_annots[name]
+	                elif name in tier2:
+	                	tier2_cnt += 1
+	                	info = seq.info + ' ' + tier2_annots[name]
 	                seqs.append(sequence.Sequence(seq.sequence, seq.alphabet, seq.name, info))
 	            except:
 	            	pass
