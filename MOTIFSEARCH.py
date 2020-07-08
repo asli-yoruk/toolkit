@@ -16,6 +16,7 @@ def main():
 	motifs = getMotifs(args)
 
 	matches, d = motifSearch(args,motifs)
+	print(matches)
 	writeMatches(args, matches, d)
 
 
@@ -86,22 +87,18 @@ def writeMatches(args, matches,d):
 								dictionary[whichMotif] += ',' + start
 							else:
 								dictionary[whichMotif] = start
+
 					dictionary['Name'] = keySmallD
-				thewriter.writerow(dictionary)
-				print(dictionary)
-				print("DONE")
+				if bool(dictionary):
+					thewriter.writerow(dictionary)
 		count += 1
 
 
 
 def getMotifs(args):
-	# motifs = [sequence.Regexp("[D][DGE].{1,3}[DE]"),
-    #           sequence.Regexp("[ND]D..[ST]...[ED]"),
-    #           sequence.Regexp("W.{5,7}RY")]
     motifObj = []
 
     for m in args.motif:
-    	#print(m)
     	motifsRegex = sequence.Regexp(m)
     	motifObj.append(motifsRegex)	
 

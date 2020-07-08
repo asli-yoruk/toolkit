@@ -43,26 +43,13 @@ def main():
 		print(len(tier1))
 
 	elif args.tier1:
-
 		print("these are special seqs")
 		if '.fa' in args.tier1:		
 			print("tier 1 sequences are FASTA file")
 			tier1 = {}
 			tier1_annots = {} # annotations that we want to include in the final dataset
 			seq_list = sequence.readFastaFile(args.tier1, sequence.Protein_Alphabet, ignore=True, parse_defline=False)
-			print(seq_list)
 			sequence.writeFastaFile('tier1_query.fa', seq_list)
-
-			#print(t)
-			# tier1 = {} # map from "long" name to actual entry
-			# for s in t:
-			# # #     #print(s.name)
-			# #     tier1[s.name] = s
-			# # # #     print(s)
-			# 	db100_map_short[sequence.parseDefline(s.name)[0]] = s
-			# # for i in args.tier1:
-			# # 	print(i)
-			# print(tier1)
 			
 		elif '.csv' in args.tier1:
 			tier1 = {}
@@ -71,29 +58,29 @@ def main():
 			with open(args.tier1, newline='') as f:
 					reader = csv.reader(f)
 					headerInput = next(reader)  # gets the first line
-					print(headerInput)
 					for row in reader:
-						#print(row)
 						tier1[row[0]] = row[1]
 
 			seq_list = [sequence.Sequence(sequence=seq, name=seqname) for seqname, seq in tier1.items()]
 			sequence.writeFastaFile('tier1_query.fa', seq_list)
 
 	tier2 = {}
+	tier2_short = {}
 	tier2_annots = {} # annotations that we want to include in the final dataset
 
 	if args.tier2:
 		print("tier2 special sequences have been provided")
 		if '.fa' in args.tier2:
 			print("tier 2 sequences are FASTA file")
-			# for name in copunames:
-		 #    	if name in db100_map_short:
-			#         s = db100_map_short[name]
-			#         tier2[s.name] = s
-			#         tier2_annots[s.name] = 'T2=yes'
-	  #       print(tier2)
+			tier2_list = sequence.readFastaFile(args.tier2, sequence.Protein_Alphabet, ignore=True, parse_defline=False)
+			for s in tier2_list:
+			    tier2[s.name] = ("".join(s.sequence))
+			    #tier2_short[sequence.parseDefline(s.name)[0]] = s
+
 		elif '.csv' in args.tier2:
 			print("tier 2 sequences are CSV file")
+		print(str(len(tier2)) + " sequences in tier2")
+		# print(tier2_short)
 
 	elif args.annotateFile2:
 		print("tier2 representative sequences have been provided")
@@ -102,7 +89,7 @@ def main():
 		elif '.csv' in args.tier2:
 			print("tier 2 sequences are CSV file")
 
-
+	print(args.input)
 	db100 = sequence.readFastaFile(args.input, sequence.Protein_Alphabet, ignore=True, parse_defline=False)
 	db100_map = {} # map from "long" name to actual entry
 	db100_map_short = {} # map from "short" name to entry
@@ -149,10 +136,6 @@ def main():
 		    else:
 		        notfound.append(name)
 		print('Matched', len(copunames)-len(notfound), 'of', len(copunames))
-		print(len(tier1))
-		print(len(tier1_annots))
-		print(len(notfound))
-		print(tier1)
 
 		tier1_seqs = [tier1[name] for name in tier1]
 		sequence.writeFastaFile('tier1.fa', tier1_seqs)
@@ -236,7 +219,6 @@ def main():
 
 	totalSeqCount = []
 	c = 0
-	print(args.eval)
 	for evalue in args.eval:
 	    for rr in redundancy: 
 	        output = []
@@ -252,6 +234,7 @@ def main():
 
 	        f.close()
 	        tier1_cnt = 0
+	        tier2_cnt = 0
 	        seqs = []
 
 	        #add the user sequences to all of our datasets
@@ -274,7 +257,7 @@ def main():
 	            	pass
 	                #print('Did not find', name)
 	        sequence.writeFastaFile(result_file + ".fa", seqs)
-	        print('Processed', len(seqs), 'for', result_file, ' Tier-1:', tier1_cnt)
+	        print('Processed', len(seqs), 'for', result_file, ' Tier-1:', tier1_cnt, ' Tier-2:', tier2_cnt)
 	        output = [ev,red,len(seqs)]
 	        totalSeqCount.append(output)
 
