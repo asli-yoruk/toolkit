@@ -6,10 +6,7 @@ import pandas as pd
 def main():
 	args = getInput()
 
-	#if annotateFile and annotateKeyword exists in the input
-	#input file extension MUST be a csv
-	#TODO not handling every case
-	if args.input and args.annotateFile and args.annotateKeyword:
+	if args.input and args.annotateFile:
 		annotateMerge(args)
 	elif args.annotateKeyword and args.annotateFile:
 		annotateThis(args)
@@ -33,29 +30,34 @@ def read(args):
 
 	outputfile = output(args)
 
-	db100 = sequence.readFastaFile(args.input, sequence.Protein_Alphabet, ignore=True, parse_defline=False)
+	orig_dict = {}
 
-	with open(outputfile, 'w', newline='') as f:
-	    fieldnames = ['Name', 'Sequence']
-	    thewriter = csv.DictWriter(f, fieldnames=fieldnames)
-	    
-	    thewriter.writeheader()
-	    for seq in db100:
-	    	s = ''.join(seq.sequence)
-	    	thewriter.writerow({'Name' : seq.name, 'Sequence' : s})
+	if '.csv' in args.input:
+		print("this is a CSV file")
+		with open(args.input, newline='') as f:
+			reader = csv.reader(f)
+			for row in reader:
+				orig_dict[row[0]] = row[1]
+		seq_list = [sequence.Sequence(sequence=seq, name=seqname) for seqname, seq in orig_dict.items()]
+		sequence.writeFastaFile(outputfile, seq_list)
+	
+
+	elif '.tab' or '.tsv' in args.input:
+		print("this is a TAB/TSV file")
+		with open(args.input) as tsv:
+			for line in csv.reader(tsv, dialect="excel-tab"):
+				orig_dict[line[0]] = line[1]
+
+		seq_list = [sequence.Sequence(sequence=seq, name=seqname) for seqname, seq in orig_dict.items()]
+		sequence.writeFastaFile(outputfile, seq_list)
 
 
-#IF GIVEN ANNOTATION FILE IS A CSV, go through the header names 
-#and write a csv file accordingly
-def annotateMerge(args):
-	outputfile = output(args)
 
-	commonCols = []
-
-	if '.fa' in args.input:
+	elif '.fa' or '.fasta' in args.input:
+		print("this is a FASTA file")
 		db100 = sequence.readFastaFile(args.input, sequence.Protein_Alphabet, ignore=True, parse_defline=False)
 
-		with open('input.csv', 'w', newline='') as f:
+		with open(outputfile, 'w', newline='') as f:
 		    fieldnames = ['Name', 'Sequence']
 		    thewriter = csv.DictWriter(f, fieldnames=fieldnames)
 		    
@@ -63,12 +65,129 @@ def annotateMerge(args):
 		    for seq in db100:
 		    	s = ''.join(seq.sequence)
 		    	thewriter.writerow({'Name' : seq.name, 'Sequence' : s})
-		args.input = 'input.csv'
 
 
-	if '.fa' in args.annotateFile:
+
+#Force the user to give CSV for merging tables
+def annotateMerge(args):
+	outputfile = output(args)
+
+	# commonCols = []
+
+	# if '.fa' in args.input:
+	# 	args.input = 'table1.csv'
+	# 	db100 = sequence.readFastaFile(args.input, sequence.Protein_Alphabet, ignore=True, parse_defline=False)
+
+	# 	with open('table1.csv', 'w', newline='') as f:
+	# 	    fieldnames = ['Name', 'Sequence']
+	# 	    thewriter = csv.DictWriter(f, fieldnames=fieldnames)
+		    
+	# 	    thewriter.writeheader()
+	# 	    for seq in db100:
+	# 	    	s = ''.join(seq.sequence)
+	# 	    	thewriter.writerow({'Name' : seq.name, 'Sequence' : s})
+
+
+
+	# if '.fa' in args.annotateFile:
+	# 	print("this is a FASTA file")
+	# 	annot = sequence.readFastaFile(args.annotateFile, sequence.Protein_Alphabet, ignore=True, parse_defline=False)
+	# 	args.annotateFile = "table2.csv"
+	# 	with open("table2.csv", 'w', newline='') as f:
+	# 	    fieldnames = ['Name', 'Sequence', args.annotateKeyword]
+	# 	    thewriter = csv.DictWriter(f, fieldnames=fieldnames)
+		    
+	# 	    thewriter.writeheader()
+	# 	    for seq in annot:
+	# 		    	s = ''.join(seq.sequence)
+	# 		    	thewriter.writerow({'Name' : seq.name, 'Sequence' : s, args.annotateKeyword : args.annotateKeyword})
+
+
+	if '.csv' in args.annotateFile:
+		print("this is csv")
+
+
+	a = pd.read_csv(args.input)
+	f = pd.read_csv(args.annotateFile)
+	cols = []
+	print("First table")
+	print(a)
+	print("Second table")
+	print(f)
+
+	for col in a.columns:
+	    if (col != 'Name') and (col != 'Sequence'):
+	        cols.append(col)
+
+	for col in f.columns:
+	    if (col != 'Name') and (col != 'Sequence'):
+	        cols.append(col)
+
+	print (cols)
+
+	merged = pd.merge(a, f,  how='outer', on = ['Name','Sequence'])
+	print(merged)
+
+	if len(cols) == 1:
+		merged.to_csv("annot_file.csv", index=False)
+	else:
+		cols = []
+
+
+		for col in merged.columns:
+		    if (col != 'Name') and (col != 'Sequence'):
+		        cols.append(col)
+
+
+		print(cols)
+		merged['combined'] = merged[cols].apply(lambda row: '_'.join(row.values.astype(str)), axis=1)
+
+
+		merged = merged.drop(cols,1)
+		print(merged)
+
+		setAnnots = []
+
+		for v in merged['combined']:
+			mergedannots = ""
+			v = v.split("_")
+			annots = []
+			for i in range (len(v)):
+			    if v[i] not in annots:
+			        if v[i] != 'nan':                
+			            annots.append(v[i])
+			count = 0
+			mergedannots = annots[0]
+			for x in annots:
+			    if count != 0:
+			        mergedannots += '_'+x
+			    count += 1
+			setAnnots.append(mergedannots)
+		    # v = v.split("_")
+		    # annots = []
+		    # for i in range (len(v)):
+		    #     if v[i] not in annots:
+		    #         if v[i] != 'nan':                
+		    #             annots.append(v[i])
+		    # setAnnots.append(annots)
+
+		    
+		merged = merged.drop("combined",1)
+		merged['Annots'] = setAnnots
+		merged
+		merged.to_csv("new_annot_file.csv", index=False)
+
+
+
+def annotateThis(args):
+
+	outputfile = output(args)
+
+	if '.fa' or '.fasta' in args.annotateFile:
+		print("this is a FASTA file")
 		annot = sequence.readFastaFile(args.annotateFile, sequence.Protein_Alphabet, ignore=True, parse_defline=False)
-		with open('annot.csv', 'w', newline='') as f:
+
+		with open(outputfile, 'w', newline='') as f:
 		    fieldnames = ['Name', 'Sequence', args.annotateKeyword]
 		    thewriter = csv.DictWriter(f, fieldnames=fieldnames)
 		    
@@ -76,57 +195,33 @@ def annotateMerge(args):
 		    for seq in annot:
 			    	s = ''.join(seq.sequence)
 			    	thewriter.writerow({'Name' : seq.name, 'Sequence' : s, args.annotateKeyword : args.annotateKeyword})
-		headerAnnot = fieldnames
-
-		with open(args.input, newline='') as f:
-			reader = csv.reader(f)
-			headerInput = next(reader)  # gets the first line
-
-		for h1 in headerInput:
-			for h2 in headerAnnot:
-				if h1 == h2:
-					commonCols.append(h1)
-
-		a = pd.read_csv(args.input)
-		b = pd.read_csv('annot.csv')
-		merged = pd.merge(a, b,  how='outer', left_on=commonCols, right_on = commonCols)
-		merged.to_csv(outputfile, index=False)
 
 	elif '.csv' in args.annotateFile:
-		print("this is csv")
-
+		print("this is a CSV file")
 		with open(args.annotateFile, newline='') as f:
 			reader = csv.reader(f)
-			headerAnnot = next(reader)  
+			header = next(reader)  
+			nameCol = 0
+			seqCol = 0
+			dictionary = {}
 
-		with open(args.input, newline='') as f:
-			reader = csv.reader(f)
-			headerInput = next(reader)  
+			for h in range (len(header)):
+				if header[h] == 'Name':
+					nameCol = h
+				elif header[h] == 'Sequence':
+					seqCol = h
 
-		for h1 in headerInput:
-			for h2 in headerAnnot:
-				if h1 == h2:
-					commonCols.append(h1)
+			for row in reader:
+				dictionary[row[nameCol]] = row[seqCol]
 
-		a = pd.read_csv(args.input)
-		b = pd.read_csv(args.annotateFile)
-		merged = pd.merge(a, b,  how='outer', left_on=commonCols, right_on = commonCols)
-		merged.to_csv(outputfile, index=False)
+		
+		with open(outputfile, 'w', newline='') as f:
+			fieldnames = ['Name', 'Sequence', 'Annots']
+			thewriter = csv.DictWriter(f, fieldnames=fieldnames)
+			thewriter.writeheader()
+			for name,seq in dictionary.items():
+				thewriter.writerow({'Name' : name, 'Sequence' : seq, 'Annots' : args.annotateKeyword})
 
-
-def annotateThis(args):
-	outputfile = output(args)
-
-	annot = sequence.readFastaFile(args.annotateFile, sequence.Protein_Alphabet, ignore=True, parse_defline=False)
-
-	with open(outputfile, 'w', newline='') as f:
-	    fieldnames = ['Name', 'Sequence', args.annotateKeyword]
-	    thewriter = csv.DictWriter(f, fieldnames=fieldnames)
-	    
-	    thewriter.writeheader()
-	    for seq in annot:
-		    	s = ''.join(seq.sequence)
-		    	thewriter.writerow({'Name' : seq.name, 'Sequence' : s, args.annotateKeyword : args.annotateKeyword})
 
 
 
