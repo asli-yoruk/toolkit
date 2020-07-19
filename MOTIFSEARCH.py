@@ -16,9 +16,9 @@ def main():
 	motifs = getMotifs(args)
 
 	matches, d = motifSearch(args,motifs)
-	print(matches)
-	writeMatches(args, matches, d)
 
+	writeMatches(args, matches, d)
+	d = {}
 
 def motifSearch(args, motifs):
 	names = dict()
@@ -35,6 +35,7 @@ def motifSearch(args, motifs):
 
 		for a in ali:
 			seqName = str(a).split(":")[0]
+			seqSequence = str(a).split(":")[1].strip()
 			thisset = set()
 
 			for m in motifs:
@@ -58,6 +59,7 @@ def motifSearch(args, motifs):
 					thisset.add(addThis)
 				else:
 					pass
+			thisset.add('Sequence,' + seqSequence+', '+', ')
 			dictionary[seqName] = thisset
 		names[s] = dictionary
 	#print(names)
@@ -74,6 +76,7 @@ def writeMatches(args, matches,d):
 			fieldnames = ['Name']
 			for i in range (len(args.motif)):
 				fieldnames.append('motif' + str(i+1))
+			fieldnames.append('Sequence')
 
 			thewriter = csv.DictWriter(f, fieldnames=fieldnames)
 			thewriter.writeheader()
@@ -92,6 +95,7 @@ def writeMatches(args, matches,d):
 				if bool(dictionary):
 					thewriter.writerow(dictionary)
 		count += 1
+		print("Done")
 
 
 

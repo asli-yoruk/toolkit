@@ -48,8 +48,9 @@ def main():
 			print("tier 1 sequences are FASTA file")
 			tier1 = {}
 			tier1_annots = {} # annotations that we want to include in the final dataset
-			seq_list = sequence.readFastaFile(args.tier1, sequence.Protein_Alphabet, ignore=True, parse_defline=False)
-			sequence.writeFastaFile('tier1_query.fa', seq_list)
+			seq_list_tier1 = sequence.readFastaFile(args.tier1, sequence.Protein_Alphabet, ignore=True, parse_defline=False)
+
+			sequence.writeFastaFile('tier1_query.fa', seq_list_tier1)
 			
 		elif '.csv' in args.tier1:
 			tier1 = {}
@@ -61,8 +62,8 @@ def main():
 					for row in reader:
 						tier1[row[0]] = row[1]
 
-			seq_list = [sequence.Sequence(sequence=seq, name=seqname) for seqname, seq in tier1.items()]
-			sequence.writeFastaFile('tier1_query.fa', seq_list)
+			seq_list_tier1 = [sequence.Sequence(sequence=seq, name=seqname) for seqname, seq in tier1.items()]
+			sequence.writeFastaFile('tier1_query.fa', seq_list_tier1)
 
 	tier2 = {}
 	tier2_short = {}
@@ -73,13 +74,17 @@ def main():
 		if '.fa' in args.tier2:
 			print("tier 2 sequences are FASTA file")
 			tier2_list = sequence.readFastaFile(args.tier2, sequence.Protein_Alphabet, ignore=True, parse_defline=False)
-			for s in tier2_list:
-			    tier2[s.name] = ("".join(s.sequence))
+
+			sequence.writeFastaFile('tier2_query.fa', tier2_list)
+			# for s in tier2_list:
+			#     tier2[s.name] = ("".join(s.sequence))
 			    #tier2_short[sequence.parseDefline(s.name)[0]] = s
+
 
 		elif '.csv' in args.tier2:
 			print("tier 2 sequences are CSV file")
-		print(str(len(tier2)) + " sequences in tier2")
+
+
 		# print(tier2_short)
 
 	elif args.annotateFile2:
@@ -89,7 +94,12 @@ def main():
 		elif '.csv' in args.tier2:
 			print("tier 2 sequences are CSV file")
 
-	print(args.input)
+	if '.csv' in args.tier1:
+		print(str(len(tier1)) + " sequences in tier1")
+	elif '.fa' in args.tier1:
+		print(str(len(seq_list_tier1)) + " sequences in tier1")
+	print(str(len(tier2_list)) + " sequences in tier2")
+
 	db100 = sequence.readFastaFile(args.input, sequence.Protein_Alphabet, ignore=True, parse_defline=False)
 	db100_map = {} # map from "long" name to actual entry
 	db100_map_short = {} # map from "short" name to entry
@@ -111,36 +121,66 @@ def main():
 
 
 	if args.tier1:
-		os.system("blastp -db " + args.database + " -outfmt 3 -num_descriptions 1 -num_alignments 0 -query tier1_query.fa -out UniProt_rep.txt")
-		command = "grep -e \"^[st][pr]|\" UniProt_rep.txt | cut -d\' \' -f1 > UniProt_copu.tab"
+		os.system("blastp -db " + args.database + " -outfmt 3 -num_descriptions 1 -num_alignments 0 -query tier1_query.fa -out UniProt_rept1.txt")
+		command = "grep -e \"^[st][pr]|\" UniProt_rept1.txt | cut -d\' \' -f1 > UniProt_t1.tab"
 		print (command)
 		os.system(command)
 
 		# Extract the resulting sequence identifiers
-		copunames = set([])
+		t1names = set([])
 		c = 0
-		f = open('UniProt_copu.tab', 'rt')
+		f = open('UniProt_t1.tab', 'rt')
 		for row in f:
-		    copunames.add(sequence.parseDefline(row.strip())[0])
+		    t1names.add(sequence.parseDefline(row.strip())[0])
 		    c +=1
 		f.close()
 		print(c)
-		print(len(copunames))
+		print(len(t1names))
 
 		notfound = []
-		for name in copunames:
+		for name in t1names:
 		    if name in db100_map_short:
 		        s = db100_map_short[name]
 		        tier1[s.name] = s
-		        tier1_annots[s.name] = 'CP=yes'
+		        tier1_annots[s.name] = 'T1=yes'
 		    else:
 		        notfound.append(name)
-		print('Matched', len(copunames)-len(notfound), 'of', len(copunames))
+		print('Matched', len(t1names)-len(notfound), 'of', len(t1names))
 
 		tier1_seqs = [tier1[name] for name in tier1]
 		sequence.writeFastaFile('tier1.fa', tier1_seqs)
 
 	print('Ultimately', len(tier1), 'Tier-1 entries')
+
+	if args.tier2:
+		os.system("blastp -db " + args.database + " -outfmt 3 -num_descriptions 1 -num_alignments 0 -query tier2_query.fa -out UniProt_rept2.txt")
+		command = "grep -e \"^[st][pr]|\" UniProt_rept2.txt | cut -d\' \' -f1 > UniProt_t2.tab"
+		print (command)
+		os.system(command)
+
+		# Extract the resulting sequence identifiers
+		t2names = set([])
+		c = 0
+		f = open('UniProt_t2.tab', 'rt')
+		for row in f:
+		    t2names.add(sequence.parseDefline(row.strip())[0])
+		    c +=1
+		f.close()
+
+		notfound = []
+		for name in t2names:
+		    if name in db100_map_short:
+		        s = db100_map_short[name]
+		        tier2[s.name] = s
+		        tier2_annots[s.name] = 'T2=yes'
+		    else:
+		        notfound.append(name)
+		print('Matched', len(t2names)-len(notfound), 'of', len(t2names))
+
+		tier2_seqs = [tier2[name] for name in tier2]
+		sequence.writeFastaFile('tier2.fa', tier2_seqs)
+
+	print('Ultimately', len(tier2), 'Tier-2 entries')
 
 
 	if args.annotateFile1:
@@ -238,7 +278,7 @@ def main():
 	        seqs = []
 
 	        #add the user sequences to all of our datasets
-	        for seq in seq_list:
+	        for seq in seq_list_tier1:
 	        	c+=1
 	        	seqs.append(seq)
 
