@@ -34,7 +34,16 @@ def motifSearch(args, motifs):
 		dictionary = dict()
 
 		for a in ali:
-			seqName = str(a).split(":")[0]
+			T1 = False
+			if 'T1' in a.info:
+				seqName = a.name+"+T1=yes"
+				T1 = True
+			if 'T2' in a.info:
+				seqName = a.name+"+T2=yes"
+			elif T1 == False:
+				seqName = a.name
+			    #print(seqName)
+			#seqName = str(a).split(":")[0]
 			seqSequence = str(a).split(":")[1].strip()
 			thisset = set()
 
