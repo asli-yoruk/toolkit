@@ -11,193 +11,68 @@ def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-i", "--input", help="Input FASTA file", required=True)
 	parser.add_argument("-db", "--database", help="Database output file name", required=True)
-	parser.add_argument("-r", "--redundancy", nargs='*', help="List of redundancy levels", default=[99,98,95,90,80,70])
-	#if user provided the CSV file after MATCHMYSEQS -af, no blastp needed
-	parser.add_argument("-af1", "--annotateFile1", help="Tier1 representative sequences")
-	#if user provided CSV file with their own tier1 seqs, we blastp
+	parser.add_argument("-r", "--redundancy", nargs='*', help="List of redundancy levels", default=[90,80,70])
 	parser.add_argument("-t1", "--tier1", help="User's Tier1 sequences")
-	parser.add_argument("-af2", "--annotateFile2", help="Tier2 representative sequences")
 	parser.add_argument("-t2", "--tier2", help="User's Tier2 sequences")
 	parser.add_argument("-ml", "--maxlength", help="Max length that the sequence can be", default=800)
 	parser.add_argument("-e", "--eval", nargs='*', help="List of evalues", default=[1e-100, 1e-75, 1e-50, 1e-20, 1e-10, 1e-5])
 	args = parser.parse_args()
 
-	header = True
-	tier1 = {}
-	seqNameCol = 0
-	#As long as the csv has Name and Sequence, it is fine
-	if args.annotateFile1:
-		print("these are representative")
-		with open(args.annotateFile1, newline='') as f:
-				reader = csv.reader(f)
-				for row in reader:
-					if header:
-						for i in range (len(row)):
-							if row[i] == 'Representative':
-								seqNameCol = i
-							elif row[i] == 'Sequence':
-								seqCol = i
-						header = False
-						continue
-					tier1[row[seqNameCol]] = row[seqCol]
-		print(len(tier1))
-
-	elif args.tier1:
-		print("these are special seqs")
-		if '.fa' in args.tier1:		
-			print("tier 1 sequences are FASTA file")
-			tier1 = {}
-			tier1_annots = {} # annotations that we want to include in the final dataset
-			seq_list_tier1 = sequence.readFastaFile(args.tier1, sequence.Protein_Alphabet, ignore=True, parse_defline=False)
-
-			sequence.writeFastaFile('tier1_query.fa', seq_list_tier1)
-			
-		elif '.csv' in args.tier1:
-			tier1 = {}
-			tier1_annots = {} # annotations that we want to include in the final dataset
-			print("tier 1 sequences are CSV file")
-			with open(args.tier1, newline='') as f:
-					reader = csv.reader(f)
-					headerInput = next(reader)  # gets the first line
-					for row in reader:
-						tier1[row[0]] = row[1]
-
-			seq_list_tier1 = [sequence.Sequence(sequence=seq, name=seqname) for seqname, seq in tier1.items()]
-			sequence.writeFastaFile('tier1_query.fa', seq_list_tier1)
-
 	tier2 = {}
 	tier2_short = {}
 	tier2_annots = {} # annotations that we want to include in the final dataset
 
+
 	if args.tier2:
-		print("tier2 special sequences have been provided")
-		if '.fa' in args.tier2:
-			print("tier 2 sequences are FASTA file")
-			tier2_list = sequence.readFastaFile(args.tier2, sequence.Protein_Alphabet, ignore=True, parse_defline=False)
+		print("tier2 sequences have been provided")
 
-			sequence.writeFastaFile('tier2_query.fa', tier2_list)
-			# for s in tier2_list:
-			#     tier2[s.name] = ("".join(s.sequence))
-			    #tier2_short[sequence.parseDefline(s.name)[0]] = s
+		if '.fa' in args.tier2 or '.fasta' in args.tier2:
+			print("tier2 sequences are FASTA file")
+			tier2db = sequence.readFastaFile(args.tier2, sequence.Protein_Alphabet, ignore=True, parse_defline=False)
+			print(str(len(tier2_list)) + " sequences in tier2")
+			tier2_list = {} # map from "long" name to actual entry
+			tier2_map_short = {} # map from "short" name to entry
+			for s in tier2db:
+			    tier2_list[s.name] = s
+			    tier2_map_short[sequence.parseDefline(s.name)[0]] = s
+		else:
+			print("Please provide FASTA file for tier-2")
+
+	if args.tier1:
+		tier1 = {}
+		tier1_annots = {} # annotations that we want to include in the final dataset
+		print("Tier-1 sequences have been provided")
+		if '.fa' in args.tier1 or '.fasta' in args.tier1:
+
+			print("Tier-1 sequences are provided as a FASTA file")
+			tier1db = sequence.readFastaFile(args.tier1, sequence.Protein_Alphabet, ignore=True, parse_defline=False)
+			tier1_list = {}
+			for s in tier1db:
+				tier1_list[s.name] = "".join(s.sequence)
+			print("Tier-1 has " + str(len(tier1_list)) + " sequences") 
 
 
-		elif '.csv' in args.tier2:
-			print("tier 2 sequences are CSV file")
+		else:
+			print("Please provide FASTA file for tier-1")
 
-
-		# print(tier2_short)
-
-	elif args.annotateFile2:
-		print("tier2 representative sequences have been provided")
-		if '.fa' in args.tier2:
-			print("tier 2 sequences are FASTA file")
-		elif '.csv' in args.tier2:
-			print("tier 2 sequences are CSV file")
-
-	if '.csv' in args.tier1:
-		print(str(len(tier1)) + " sequences in tier1")
-	elif '.fa' in args.tier1:
-		print(str(len(seq_list_tier1)) + " sequences in tier1")
-	print(str(len(tier2_list)) + " sequences in tier2")
 
 	db100 = sequence.readFastaFile(args.input, sequence.Protein_Alphabet, ignore=True, parse_defline=False)
 	db100_map = {} # map from "long" name to actual entry
 	db100_map_short = {} # map from "short" name to entry
 	for s in db100:
-	    #print(s.name)
 	    db100_map[s.name] = s
-	#     print(s)
 	    db100_map_short[sequence.parseDefline(s.name)[0]] = s
-	    #print(sequence.parseDefline(s.name)[0])
-	print(len(db100_map))
-	print(len(db100_map_short))
+	print("Database has " + str(len(db100_map)) + " sequences")
 
-	os.system('makeblastdb -dbtype prot -in ' + args.input + ' -out ' + args.database)
-
-
-	redundancy = []
-	for i in range (len(args.redundancy)):
-		redundancy.append(int(args.redundancy[i]))
-
-
-	if args.tier1:
-		os.system("blastp -db " + args.database + " -outfmt 3 -num_descriptions 1 -num_alignments 0 -query tier1_query.fa -out UniProt_rept1.txt")
-		command = "grep -e \"^[st][pr]|\" UniProt_rept1.txt | cut -d\' \' -f1 > UniProt_t1.tab"
-		print (command)
-		os.system(command)
-
-		# Extract the resulting sequence identifiers
-		t1names = set([])
-		c = 0
-		f = open('UniProt_t1.tab', 'rt')
-		for row in f:
-		    t1names.add(sequence.parseDefline(row.strip())[0])
-		    c +=1
-		f.close()
-		print(c)
-		print(len(t1names))
-
-		notfound = []
-		for name in t1names:
-		    if name in db100_map_short:
-		        s = db100_map_short[name]
-		        tier1[s.name] = s
-		        tier1_annots[s.name] = 'T1=yes'
-		    else:
-		        notfound.append(name)
-		print('Matched', len(t1names)-len(notfound), 'of', len(t1names))
-
-		tier1_seqs = [tier1[name] for name in tier1]
-		sequence.writeFastaFile('tier1.fa', tier1_seqs)
-
-	print('Ultimately', len(tier1), 'Tier-1 entries')
-
-	if args.tier2:
-		os.system("blastp -db " + args.database + " -outfmt 3 -num_descriptions 1 -num_alignments 0 -query tier2_query.fa -out UniProt_rept2.txt")
-		command = "grep -e \"^[st][pr]|\" UniProt_rept2.txt | cut -d\' \' -f1 > UniProt_t2.tab"
-		print (command)
-		os.system(command)
-
-		# Extract the resulting sequence identifiers
-		t2names = set([])
-		c = 0
-		f = open('UniProt_t2.tab', 'rt')
-		for row in f:
-		    t2names.add(sequence.parseDefline(row.strip())[0])
-		    c +=1
-		f.close()
-
-		notfound = []
-		for name in t2names:
-		    if name in db100_map_short:
-		        s = db100_map_short[name]
-		        tier2[s.name] = s
-		        tier2_annots[s.name] = 'T2=yes'
-		    else:
-		        notfound.append(name)
-		print('Matched', len(t2names)-len(notfound), 'of', len(t2names))
-
-		tier2_seqs = [tier2[name] for name in tier2]
-		sequence.writeFastaFile('tier2.fa', tier2_seqs)
-
-	print('Ultimately', len(tier2), 'Tier-2 entries')
-
-
-	if args.annotateFile1:
-		seq_list = [sequence.Sequence(sequence=seq, name=seqname) for seqname, seq in tier1.items()]
-		print(seq_list)
-		sequence.writeFastaFile('tier1.fa', seq_list)
-
-	for rr in redundancy:
+	for rr in args.redundancy:
 	    rs = str(rr)
-	    os.system('cd-hit -i ' + args.input + ' -c 0.'+rs+' -T 5 -o db'+rs+'_tps -d 0')
+	    os.system('cd-hit -i ' + args.input + ' -c 0.'+rs+' -T 5 -o db'+rs+' -d 0')
 
-	print(len(db100_map))
-	print(len(tier1))
+
 	selected = {}
-	for rr in redundancy:
+	for rr in args.redundancy:
 	    selected[rr] = []
-	    filename = 'db' + str(rr) + '_tps.clstr'
+	    filename = 'db' + str(rr) + '.clstr'
 	    clusters = readCDHIT(filename)
 	    for c in clusters: 
 	        picked_one = False
@@ -207,138 +82,164 @@ def main():
 	            if name in db100_map:
 	                seq = db100_map[name]
 	                if shortest:
-	                    if len(seq) < len(shortest) and not disqualified(args,seq):
+	                    if len(seq) < len(shortest) and not disqualified(seq,args):
 	                        shortest = seq
-	                elif not disqualified(args,seq):
+	                elif not disqualified(seq,args):
 	                    shortest = seq
-	                if seq.name.startswith('sp|') and not disqualified(args,seq):
+	                if seq.name.startswith('sp|') and not disqualified(seq,args):
 	                    reviewed = seq
-	                if name in tier1:
+	                if name in tier1_list:
+	                    #print("this one orig" + str(seq))
 	                    selected[rr].append(seq)
 	                    picked_one = True
-	                    #print("found one!")
-	                elif name in tier2:
-	                	selected[rr].append(seq)
-	                	picked_one = True
 	            else:
-	            	pass
+	                pass
 	                #print('Did not find', name)
 	        # If no Tier-1, prefer "reviewed", then shortest length
 	        if not picked_one and reviewed:
 	            selected[rr].append(reviewed)
 	        elif not picked_one and shortest:
 	            selected[rr].append(shortest)
-	print("FINISHED with redundancy levels")
-	print(len(selected[99]))
-	print(len(selected[98]))
-	print(len(selected[95]))
-	print(len(selected[90]))
-	print(len(selected[80]))
-	print(len(selected[70]))
 
-	for rr in redundancy:
-	    print(len(selected[rr]))
-	    filename = 'db' + str(rr) + '_tps.fa'
+	for rr in args.redundancy:
+	    filename = 'db' + str(rr) + '.fa'
 	    sequence.writeFastaFile(filename, selected[rr])
 
-	for rr in redundancy:
-		os.system('makeblastdb -dbtype prot -in db' + str(rr) + '_tps.fa -out db-' + str(rr))
+	for rr in args.redundancy:
+		os.system('makeblastdb -dbtype prot -in db' + str(rr) + '.fa -out db-' + str(rr))
 
-	for rr in redundancy:
-	    for evalue in [1e-100, 1e-75, 1e-50, 1e-20, 1e-10, 1e-5]:
+	# for rr in args.redundancy:
+	#     for evalue in args.evalue:
+	#         result_file = "dataset-" + str(rr) + '-'+ str(evalue)
+	#         cmd1 = "blastp -db db-" + str(rr) + " -outfmt 3 -num_descriptions 20000 -num_alignments 0 -num_threads 5 -query " + args.tier1 + " -out " + result_file + ".txt -evalue " + str(evalue)
+	#         print(cmd1)
+	#         os.system(cmd1)
+
+	grab = False
+
+	for rr in args.redundancy:
+	    for evalue in args.eval:
+	        c=0
+	        tpsIdentifier = set([])
+	        seqs = []
 	        result_file = "dataset-" + str(rr) + '-'+ str(evalue)
-	        cmd1 = "blastp -db db-" + str(rr) + " -outfmt 3 -num_descriptions 20000 -num_alignments 0 -num_threads 5 -query tier1.fa -out " + result_file + ".txt -evalue " + str(evalue)
-	        print(cmd1)
-	        os.system(cmd1)
-	        cmd2 = "grep -e \"^[st][pr]|\" " + result_file + ".txt | cut -d\' \' -f1 > " + result_file + ".tab"
-	        print(cmd2)
-	        os.system(cmd2)
-	print('Done')
+	        f = open(result_file + '.txt', 'rt')
+	        for row in f:
+	            if row.startswith('Sequences'):
+	                grab = True
+	                continue
+	            if grab == True:
+	                if row.startswith('Lambda'):
+	                    grab = False
+	                if not row.strip() == "":
+	                    identifier = row.split(' ')[0]
+	                    if identifier != "Lambda":
+	                        tpsIdentifier.add(identifier)
+	                    
 
+	        
+	        for name in tpsIdentifier:
+	            try:
+	                seq = db100_map[name]
+	                info = ''
+	                seqs.append(sequence.Sequence(seq.sequence, seq.alphabet, seq.name, info))
+	            except:
+	                pass
+	        sequence.writeFastaFile(result_file + ".fa", seqs)
+	        print(result_file + " has " + str(len(seqs)) + "sequences")
+
+	print('Done')
 
 
 	totalSeqCount = []
 	c = 0
 	for evalue in args.eval:
-	    for rr in redundancy: 
+	    for rr in args.redundancy: 
 	        output = []
 	        ev = str(evalue)
 	        ev = ev[1:]
 	        red = str(rr)
 	        result_file = "dataset-" + str(rr) + '-'+ str(evalue)
-	        # Extract the resulting sequence identifiers
-	        names = set([]) # there are duplicate names 
-	        f = open(result_file + '.tab', 'rt')
-	        for row in f:
-	            names.add(row.strip())
+	        a = sequence.readFastaFile(result_file + '.fa', sequence.Protein_Alphabet, ignore=True, parse_defline=False)
 
-	        f.close()
+	        names = set([]) 
+	        for s in a:
+	            names.add(s.name)
 	        tier1_cnt = 0
 	        tier2_cnt = 0
 	        seqs = []
-
-	        #add the user sequences to all of our datasets
-	        for seq in seq_list_tier1:
-	        	c+=1
-	        	seqs.append(seq)
-
 	        for name in names:
 	            try:
 	                seq = db100_map[name]
 	                info = ''
-	                if name in tier1:
+	                if name in tier1_list:
 	                    tier1_cnt += 1
-	                    info = seq.info + ' ' + tier1_annots[name]
+	                    #info = seq.info + ' ' + tier1_annots[name]
 	                elif name in tier2:
-	                	tier2_cnt += 1
-	                	info = seq.info + ' ' + tier2_annots[name]
+	                    tier2_cnt += 1
+	                    #info = seq.info + ' ' + tier2_annots[name]
 	                seqs.append(sequence.Sequence(seq.sequence, seq.alphabet, seq.name, info))
 	            except:
 	            	pass
 	                #print('Did not find', name)
-	        sequence.writeFastaFile(result_file + ".fa", seqs)
 	        print('Processed', len(seqs), 'for', result_file, ' Tier-1:', tier1_cnt, ' Tier-2:', tier2_cnt)
 	        output = [ev,red,len(seqs)]
 	        totalSeqCount.append(output)
 
 
+	plotSeqs(totalSeqCount)
+
+
+
+def plotSeqs(totalSeqCount):
+	plt.figure()
 	df = pd.DataFrame(totalSeqCount, columns=["E-value", "RedundancyLevel", "Quantity"])
 
 	g = sns.catplot(x="RedundancyLevel", y="Quantity", hue="E-value", data=df,
 	                height=20,kind="bar", palette="muted")
+	#plt.legend(loc="lower right", prop={'size': 34})
+	sns.set(font_scale=30)
 
 	g.despine(left=True)
 	g.set_ylabels("Sequence Count")
 	g.savefig("sequenceCount.png")
 
-def readCDHIT(filename):
-	m = {}
-	with open(filename) as fd:
-	    rd = csv.reader(fd, delimiter="\t")
-	    current = []
-	    clustername = None
-	    for row in rd:
-	        if len(row) > 0: # there is content
-	            if row[0].startswith('>'): # new cluster
-	                if len(current) > 0 and clustername: # old cluster needs taking care of
-	                    m[clustername] = current
-	                    current = []
-	                clustername = row[0][1:].strip()
-	            elif len(row) > 1:
-	                field = row[1].split('>')
-	                if len(field) > 1:
-	                    name = field[1].split('.')[0]
-	                    current.append(name)
-	print(len(m))
-	return m
 
-def disqualified(args,seq):
+
+
+def readCDHIT(filename):
+    ''' Function to place all clusters from CD-HIT in a map.
+        Each cluster is a list of names. '''
+    m = {}
+    with open(filename) as fd:
+        rd = csv.reader(fd, delimiter="\t")
+        current = []
+        clustername = None
+        for row in rd:
+            if len(row) > 0: # there is content
+                if row[0].startswith('>'): # new cluster
+                    if len(current) > 0 and clustername: # old cluster needs taking care of
+                        m[clustername] = current
+                        current = []
+                    clustername = row[0][1:].strip()
+                elif len(row) > 1:
+                    field = row[1].split('>')
+                    if len(field) > 1:
+                        name = field[1].split('.')[0]
+                        current.append(name)
+        m[clustername] = current
+    return m
+
+
+
+def disqualified(seq,args):
     # Potential parameters to restrict inclusion
     # Must be set manually, by someone informed
     maxlength = args.maxlength
     if len(seq) > maxlength:
         return True
     return False
+
 
 
 

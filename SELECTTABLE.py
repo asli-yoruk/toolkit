@@ -204,27 +204,47 @@ def allMotifs_fa(args):
 
 def posEqual_fa(args):
 	fasta = {}
-	
-	for i in range (len(args.input)):
-		name = (args.input[i])
-		name = name.split('.')[0]
-		name = name + '_reduced.fa'
+	name = (args.input[0])
+	name = name.split('.')[0]
+	csvFile = name + '_reduced.csv'
+	seqCol = 0
 
-		with open(args.input[i], newline='') as f:
-			reader = csv.reader(f)
-			header = next(reader)
-
-			for row in reader:
-				isEmpty = False
-				for i in range(1, len(header)-1):
-					if row[i] == "":
-						isEmpty = True
-						break
-				if isEmpty == False:
-					fasta[row[0]] = row[len(header)-1]
+	with open(csvFile, newline='') as f:
+		reader = csv.reader(f)
+		header = next(reader)
+		seqCol = len(header)-1
+		
+		for row in reader:
+			fasta[row[0]] = row[len(header)-1]
 
 		seq_list = [sequence.Sequence(sequence=seq, name=seqname) for seqname, seq in fasta.items()]
-		sequence.writeFastaFile(name, seq_list)
+		sequence.writeFastaFile(name+'.fa', seq_list)
+
+
+		#print(header[len(header)-1])
+	
+	# for i in range (len(args.input)):
+	# 	name = (args.input[i])
+	# 	name = name.split('.')[0]
+	# 	name = name + '_reduced.fa'
+
+	# 	with open(args.input[i], newline='') as f:
+	# 		reader = csv.reader(f)
+	# 		header = next(reader)
+
+	# 		for row in reader:
+	# 			isEmpty = False
+	# 			for i in range(1, len(header)-1):
+	# 				if row[i] == "":
+	# 					isEmpty = True
+	# 					break
+	# 			if isEmpty == False:
+	# 				print(row[1])
+	# 				fasta[row[0]] = row[len(header)-1]
+
+
+	# 	seq_list = [sequence.Sequence(sequence=seq, name=seqname) for seqname, seq in fasta.items()]
+	# 	sequence.writeFastaFile(name, seq_list)
 
 
 if __name__ == '__main__':

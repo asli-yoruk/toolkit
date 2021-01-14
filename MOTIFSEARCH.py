@@ -1,7 +1,6 @@
 import argparse
 import sequence
 import csv
-#TODO havent added graphs yet
 
 def main():
 	parser = argparse.ArgumentParser()

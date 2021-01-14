@@ -20,7 +20,7 @@ def getInput():
 	parser.add_argument("-i", "--input", help="Input FASTA file")
 	parser.add_argument("-ak", "--annotateKeyword", help="Annotation keyword to add")
 	parser.add_argument("-af", "--annotateFile", help="Annotation file")
-	parser.add_argument("-o", "--output", help="Output path", default="table_output.csv")
+	parser.add_argument("-o", "--output", help="Output path", default="table_output")
 
 	args = parser.parse_args()
 	return args
@@ -34,6 +34,7 @@ def read(args):
 
 	if '.csv' in args.input:
 		print("this is a CSV file")
+		outputfile = outputfile + '.fa'
 		with open(args.input, newline='') as f:
 			reader = csv.reader(f)
 			for row in reader:
@@ -42,8 +43,9 @@ def read(args):
 		sequence.writeFastaFile(outputfile, seq_list)
 	
 
-	elif '.tab' or '.tsv' in args.input:
+	elif '.tab' in args.input or '.tsv' in args.input:
 		print("this is a TAB/TSV file")
+		outputfile = outputfile + '.fa'
 		with open(args.input) as tsv:
 			for line in csv.reader(tsv, dialect="excel-tab"):
 				orig_dict[line[0]] = line[1]
@@ -53,8 +55,9 @@ def read(args):
 
 
 
-	elif '.fa' or '.fasta' in args.input:
+	elif '.fa' in args.input or '.fasta' in args.input:
 		print("this is a FASTA file")
+		outputfile = outputfile + '.csv'
 		db100 = sequence.readFastaFile(args.input, sequence.Protein_Alphabet, ignore=True, parse_defline=False)
 
 		with open(outputfile, 'w', newline='') as f:
@@ -68,7 +71,6 @@ def read(args):
 
 
 
-#Force the user to give CSV for merging tables
 def annotateMerge(args):
 	outputfile = output(args)
 
@@ -175,7 +177,8 @@ def annotateMerge(args):
 		merged = merged.drop("combined",1)
 		merged['Annots'] = setAnnots
 		merged
-		merged.to_csv("new_annot_file.csv", index=False)
+		outputfile = outputfile + '.csv'
+		merged.to_csv(outputfile, index=False)
 
 
 
@@ -183,12 +186,13 @@ def annotateThis(args):
 
 	outputfile = output(args)
 
-	if '.fa' or '.fasta' in args.annotateFile:
+	if '.fa' in args.annotateFile or '.fasta' in args.annotateFile:
+		outputfile = outputfile + '.csv'
 		print("this is a FASTA file")
 		annot = sequence.readFastaFile(args.annotateFile, sequence.Protein_Alphabet, ignore=True, parse_defline=False)
 
 		with open(outputfile, 'w', newline='') as f:
-		    fieldnames = ['Name', 'Sequence', args.annotateKeyword]
+		    fieldnames = ['Name', 'Sequence', 'Annots']
 		    thewriter = csv.DictWriter(f, fieldnames=fieldnames)
 		    
 		    thewriter.writeheader()
@@ -198,6 +202,7 @@ def annotateThis(args):
 
 	elif '.csv' in args.annotateFile:
 		print("this is a CSV file")
+		outputfile = outputfile + '.csv'
 		with open(args.annotateFile, newline='') as f:
 			reader = csv.reader(f)
 			header = next(reader)  
@@ -226,10 +231,10 @@ def annotateThis(args):
 
 
 def output(args):
-	if args.output != 'table_output.csv':
+	if args.output != 'table_output':
 		output = args.output
 	else:
-		output = "table_output.csv"
+		output = "table_output"
 	return output
 
 
